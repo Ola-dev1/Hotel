@@ -6,16 +6,18 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const app = express();
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 
+// CORS setup
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: "http://localhost:5173", // we'll update this in Step 2
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
 }));
 
 app.use(express.json());
 
+// MongoDB setup
 const uri = process.env.ATLAS_URL;
 const client = new MongoClient(uri);
 let bookingsCollection;
@@ -32,11 +34,13 @@ async function connectToDB() {
 }
 connectToDB();
 
+// Check Paystack env var
 console.log(
     "Paystack Secret Key Loaded:",
     process.env.PAYSTACK_SECRET_KEY ? "✅ Loaded" : "❌ Not Loaded"
 );
 
+// Nodemailer setup
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -45,6 +49,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// Email function
 async function sendBookingConfirmation(toEmail, checkIn, checkOut, roomType, amount) {
     const formattedAmount = Number(amount).toLocaleString("en-NG", {
         style: "currency",
@@ -56,32 +61,32 @@ async function sendBookingConfirmation(toEmail, checkIn, checkOut, roomType, amo
         to: toEmail,
         subject: "Booking Confirmation - Pinnacle Hotel",
         html: `
-    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-      <img src="https://www.kayak.co.uk/rimg/dimg/dynamic/5/2023/08/341cd442bfcb075acf7a80a2997570a7.webp" alt="Pinnacle Hotel Logo" style="width: 150px; margin-bottom: 20px;" />
-      <h2 style="color: #2c3e50;">Booking Confirmation</h2>
-      <p>Thank you for booking with <strong>Pinnacle Hotel</strong>! Here are your reservation details:</p>
-      <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
-        <tr>
-          <td style="padding: 8px; border: 1px solid #ccc;">Room Type</td>
-          <td style="padding: 8px; border: 1px solid #ccc;">${roomType}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px; border: 1px solid #ccc;">Check-in</td>
-          <td style="padding: 8px; border: 1px solid #ccc;">${checkIn}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px; border: 1px solid #ccc;">Check-out</td>
-          <td style="padding: 8px; border: 1px solid #ccc;">${checkOut}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px; border: 1px solid #ccc;">Amount Paid</td>
-          <td style="padding: 8px; border: 1px solid #ccc;">${formattedAmount}</td>
-        </tr>
-      </table>
-      <p>We look forward to seeing you soon!</p>
-      <p>— <strong>The Pinnacle Hotel Team</strong></p>
-    </div>
-  `,
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+              <img src="https://www.kayak.co.uk/rimg/dimg/dynamic/5/2023/08/341cd442bfcb075acf7a80a2997570a7.webp" alt="Pinnacle Hotel Logo" style="width: 150px; margin-bottom: 20px;" />
+              <h2 style="color: #2c3e50;">Booking Confirmation</h2>
+              <p>Thank you for booking with <strong>Pinnacle Hotel</strong>! Here are your reservation details:</p>
+              <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ccc;">Room Type</td>
+                  <td style="padding: 8px; border: 1px solid #ccc;">${roomType}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ccc;">Check-in</td>
+                  <td style="padding: 8px; border: 1px solid #ccc;">${checkIn}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ccc;">Check-out</td>
+                  <td style="padding: 8px; border: 1px solid #ccc;">${checkOut}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ccc;">Amount Paid</td>
+                  <td style="padding: 8px; border: 1px solid #ccc;">${formattedAmount}</td>
+                </tr>
+              </table>
+              <p>We look forward to seeing you soon!</p>
+              <p>— <strong>The Pinnacle Hotel Team</strong></p>
+            </div>
+        `,
     };
 
     try {
@@ -99,7 +104,7 @@ async function sendBookingConfirmation(toEmail, checkIn, checkOut, roomType, amo
     }
 }
 
-// Payment initialization route
+// Payment route
 app.post("/api/pay", async (req, res) => {
     const { email, amount, roomType, checkIn, checkOut } = req.body;
 
@@ -132,7 +137,7 @@ app.post("/api/pay", async (req, res) => {
     }
 });
 
-// Booking endpoint
+// Booking route
 app.post("/api/book", async (req, res) => {
     const { email, amount, roomType, reference, checkIn, checkOut } = req.body;
 
@@ -154,7 +159,6 @@ app.post("/api/book", async (req, res) => {
 
         console.log("✅ New Booking Saved:", result.insertedId);
 
-        // ✅ Updated: Include amount in email
         const emailSent = await sendBookingConfirmation(email, checkIn, checkOut, roomType, amount);
 
         if (emailSent) {
@@ -168,7 +172,12 @@ app.post("/api/book", async (req, res) => {
     }
 });
 
+// ✅ NEW: Root route for browser visit
+app.get("/", (req, res) => {
+    res.send("🏨 Pinnacle Hotel API is running");
+});
+
+// Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
