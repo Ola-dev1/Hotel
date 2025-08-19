@@ -1,0 +1,83 @@
+.header_wrapper {
+  min-height: 100vh;
+  width: 100%;
+
+  position: relative;
+}
+
+.swiper {
+  height: 100vh !important;
+  width: 100% !important;
+}
+
+.Header_slide {
+  height: 100%;
+  width: 100%;
+  background-image: url("https://cf.bstatic.com/xdata/images/hotel/max1024x768/523387744.jpg?k=3def1d5d9bc3ebf93496b2b95a645b0278b1c8fd0d57e45d3028afed568a4e1a&o=&hp=1");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+
+  position: relative;
+}
+
+.slide2 {
+  background-image: url("https://www.inspiredled.com/wp-content/uploads/2018/09/1-commercial_hotel_bed-lighting-Original-Pic-1200px.jpg");
+}
+
+.slide3 {
+  background-image: url("https://en.idei.club/uploads/posts/2023-08/1691047932_en-idei-club-p-hotel-room-with-led-lights-dizain-krasivo-51.jpg");
+}
+
+.Header_slide .content {
+  position: absolute;
+  bottom: 18%;
+  left: 15%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.Header_slide::after {
+  content: "";
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(0, 0, 0, 1) 100%
+  );
+}
+
+.Header_slide .content small {
+  color: #fff;
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+.Header_slide .content h2 {
+  color: #fff;
+  margin-bottom: 20px;
+  font-size: 46px;
+}
+
+.Header_slide .content h2 span {
+  color: #df8033;
+}
+
+.Header_slide p {
+  color: #fff;
+  font-size: 20px;
+  font-family: "poppins";
+  color: #df8033;
+}
+
+.Header_slide p span {
+  display: block;
+  color: #fff;
+  font-weight: 600;
+}
