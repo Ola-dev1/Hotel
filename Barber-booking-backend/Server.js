@@ -9,11 +9,13 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // CORS setup
-app.use(cors({
-    origin: "http://localhost:5173", // we'll update this in Step 2
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-}));
+// app.use(cors({
+//     origin: "http://localhost:5173", // we'll update this in Step 2
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     credentials: true,
+// }));
+
+app.use(cors())
 
 app.use(express.json());
 
