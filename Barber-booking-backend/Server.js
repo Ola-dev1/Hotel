@@ -8,14 +8,21 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// CORS setup
-// app.use(cors({
-//     origin: "http://localhost:5173", // we'll update this in Step 2
-//     methods: ["GET", "POST", "PUT", "DELETE"],
-//     credentials: true,
-// }));
+// Update allowed origins with your deployed frontend URL
+const allowedOrigins = ["https://pinnacle-hotel.netlify.app"];
 
-app.use(cors())
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true); // allow requests like Postman or curl
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = `CORS policy: The origin ${origin} is not allowed.`;
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+}));
 
 app.use(express.json());
 
@@ -36,12 +43,6 @@ async function connectToDB() {
 }
 connectToDB();
 
-// Check Paystack env var
-console.log(
-    "Paystack Secret Key Loaded:",
-    process.env.PAYSTACK_SECRET_KEY ? "✅ Loaded" : "❌ Not Loaded"
-);
-
 // Nodemailer setup
 const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -50,6 +51,50 @@ const transporter = nodemailer.createTransport({
         pass: process.env.GMAIL_PASS,
     },
 });
+
+// Simple input validation and sanitization function
+function validateAndSanitizeBooking(data) {
+    const errors = [];
+
+    // Helper to trim strings and remove <, > to avoid HTML injection
+    function sanitizeString(str) {
+        if (typeof str !== "string") return "";
+        return str.trim().replace(/[<>]/g, "");
+    }
+
+    const email = sanitizeString(data.email);
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.push("Valid email is required.");
+    }
+
+    const amount = Number(data.amount);
+    if (isNaN(amount) || amount <= 0) {
+        errors.push("Amount must be a positive number.");
+    }
+
+    const roomType = sanitizeString(data.roomType);
+    if (!roomType) {
+        errors.push("Room type is required.");
+    }
+
+    const reference = sanitizeString(data.reference || "");
+
+    const checkIn = sanitizeString(data.checkIn);
+    const checkOut = sanitizeString(data.checkOut);
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!checkIn || !dateRegex.test(checkIn)) {
+        errors.push("Valid check-in date is required (YYYY-MM-DD).");
+    }
+    if (!checkOut || !dateRegex.test(checkOut)) {
+        errors.push("Valid check-out date is required (YYYY-MM-DD).");
+    }
+
+    return {
+        errors,
+        sanitizedData: { email, amount, roomType, reference, checkIn, checkOut },
+    };
+}
 
 // Email function
 async function sendBookingConfirmation(toEmail, checkIn, checkOut, roomType, amount) {
@@ -100,7 +145,7 @@ async function sendBookingConfirmation(toEmail, checkIn, checkOut, roomType, amo
             message: error.message,
             code: error.code,
             response: error.response,
-            responseCode: error.responseCode
+            responseCode: error.responseCode,
         });
         return false;
     }
@@ -108,11 +153,16 @@ async function sendBookingConfirmation(toEmail, checkIn, checkOut, roomType, amo
 
 // Payment route
 app.post("/api/pay", async (req, res) => {
-    const { email, amount, roomType, checkIn, checkOut } = req.body;
+    const { errors, sanitizedData } = validateAndSanitizeBooking(req.body);
 
-    if (!email || !amount || !roomType || !checkIn || !checkOut) {
-        return res.status(400).json({ error: "Email, amount, roomType, checkIn, and checkOut are required." });
+    // reference not required for payment init
+    delete sanitizedData.reference;
+
+    if (errors.length > 0) {
+        return res.status(400).json({ error: errors.join(" ") });
     }
+
+    const { email, amount, roomType, checkIn, checkOut } = sanitizedData;
 
     try {
         const response = await axios.post(
@@ -141,11 +191,17 @@ app.post("/api/pay", async (req, res) => {
 
 // Booking route
 app.post("/api/book", async (req, res) => {
-    const { email, amount, roomType, reference, checkIn, checkOut } = req.body;
+    const { errors, sanitizedData } = validateAndSanitizeBooking(req.body);
 
-    if (!email || !amount || !roomType || !reference || !checkIn || !checkOut) {
-        return res.status(400).json({ success: false, message: "Missing booking info" });
+    if (!sanitizedData.reference) {
+        errors.push("Booking reference is required.");
     }
+
+    if (errors.length > 0) {
+        return res.status(400).json({ success: false, message: errors.join(" ") });
+    }
+
+    const { email, amount, roomType, reference, checkIn, checkOut } = sanitizedData;
 
     try {
         const booking = {
@@ -174,7 +230,7 @@ app.post("/api/book", async (req, res) => {
     }
 });
 
-// ✅ NEW: Root route for browser visit
+// Root route
 app.get("/", (req, res) => {
     res.send("🏨 Pinnacle Hotel API is running");
 });
