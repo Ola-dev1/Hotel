@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import RoomsCSS from "../Rooms/Rooms.module.css";
+
 const Rooms = () => {
   const [email, setEmail] = useState("");
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [totalPrice, setTotalPrice] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false); // <-- New loading state
 
   const handlePayment = (email, amount, roomType, checkIn, checkOut) => {
     if (!email) {
@@ -17,7 +19,9 @@ const Rooms = () => {
       return;
     }
 
-    fetch("http://localhost:8000/api/pay", {
+    setIsProcessing(true); // <-- Start loading
+
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pay`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, amount, roomType, checkIn, checkOut }),
@@ -32,14 +36,17 @@ const Rooms = () => {
             email,
             amount: amount * 100, // amount in kobo
             ref: reference,
-            onClose: () => alert("Payment window closed."),
+            onClose: () => {
+              alert("Payment window closed.");
+              setIsProcessing(false); // <-- Stop loading if user closes payment
+            },
             callback: function (response) {
               alert(
                 `Payment successful. Transaction ref: ${response.reference}`
               );
 
               // Save booking to backend after payment success
-              fetch("http://localhost:8000/api/book", {
+              fetch(`${import.meta.env.VITE_API_BASE_URL}/api/book`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -65,10 +72,12 @@ const Rooms = () => {
                   } else {
                     alert("Failed to save booking: " + bookingResult.message);
                   }
+                  setIsProcessing(false); // <-- Stop loading after booking save attempt
                 })
                 .catch((error) => {
                   console.error("Error saving booking:", error);
                   alert("Error saving booking.");
+                  setIsProcessing(false); // <-- Stop loading on error
                 });
             },
           });
@@ -76,11 +85,13 @@ const Rooms = () => {
           handler.openIframe();
         } else {
           alert("Payment initialization failed.");
+          setIsProcessing(false); // <-- Stop loading if init failed
         }
       })
       .catch((error) => {
         console.error("Error:", error);
         alert("Something went wrong!");
+        setIsProcessing(false); // <-- Stop loading on fetch error
       });
   };
 
@@ -286,7 +297,7 @@ const Rooms = () => {
               </div>
               <div className={RoomsCSS.card_back}>
                 <div className={RoomsCSS.price}>
-                  <p>N190,000/N</p>
+                  <p>N300,000/N</p>
                 </div>
                 <div className={RoomsCSS.card_content}>
                   <h3>Personal Room</h3>
@@ -297,7 +308,7 @@ const Rooms = () => {
                 </div>
                 <div className={RoomsCSS.Booknow}>
                   <button
-                    onClick={() => handleSelectRoom("Personal Room", 190000)}
+                    onClick={() => handleSelectRoom("Personal Room", 300000)}
                   >
                     Book Now
                   </button>
@@ -309,38 +320,40 @@ const Rooms = () => {
         </div>
       )}
 
+      {/* Booking form after room selection */}
       {selectedRoom && (
         <div style={{ marginTop: "20px" }}>
-          <h3>
-            Booking: <span>{selectedRoom.name}</span>
-          </h3>
-          <div style={{ marginBottom: "10px" }}>
-            <label>
-              Check-in:{" "}
-              <input
-                type="date"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-              />
-            </label>
-            <label style={{ marginLeft: "20px" }}>
-              Check-out:{" "}
-              <input
-                type="date"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-              />
-            </label>
-          </div>
+          <h3>Booking {selectedRoom.name}</h3>
 
-          <button onClick={handleCalculatePrice}>Calculate Total Price</button>
+          <label>
+            Check-In Date:
+            <input
+              type="date"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+            />
+          </label>
+
+          <label style={{ marginLeft: "15px" }}>
+            Check-Out Date:
+            <input
+              type="date"
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+            />
+          </label>
+
+          <button
+            style={{ marginLeft: "15px" }}
+            onClick={handleCalculatePrice}
+            disabled={isProcessing} // disable during processing
+          >
+            Calculate Price
+          </button>
 
           {totalPrice > 0 && (
             <div style={{ marginTop: "10px" }}>
-              <p>
-                Total Price for your stay:{" "}
-                <strong>N{totalPrice.toLocaleString()}</strong>
-              </p>
+              <p>Total Price for stay: ₦{totalPrice.toLocaleString()}</p>
               <button
                 onClick={() =>
                   handlePayment(
@@ -351,24 +364,29 @@ const Rooms = () => {
                     checkOut
                   )
                 }
+                disabled={isProcessing} // disable button while processing
               >
-                Confirm & Pay
+                {isProcessing ? "Processing..." : "Pay Now"}
               </button>
             </div>
           )}
 
-          <div style={{ marginTop: "10px" }}>
-            <button
-              onClick={() => {
-                setSelectedRoom(null);
-                setCheckIn("");
-                setCheckOut("");
-                setTotalPrice(0);
-              }}
-            >
-              Cancel Booking
-            </button>
-          </div>
+          <button
+            style={{
+              marginTop: "10px",
+              backgroundColor: "red",
+              color: "white",
+            }}
+            onClick={() => {
+              setSelectedRoom(null);
+              setCheckIn("");
+              setCheckOut("");
+              setTotalPrice(0);
+            }}
+            disabled={isProcessing} // disable cancel if processing
+          >
+            Cancel Booking
+          </button>
         </div>
       )}
     </div>
